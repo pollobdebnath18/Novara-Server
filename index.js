@@ -1,16 +1,14 @@
 const express = require("express");
 const app = express();
 const port = 8000;
+require("dotenv").config();
 
 app.get("/", (req, res) => {
   res.send("Hello World!");
 });
 
-
-
 const { MongoClient, ServerApiVersion } = require("mongodb");
-const uri =
-  "mongodb+srv://<db_username>:<db_password>@cluster0.0wxl8hn.mongodb.net/?appName=Cluster0";
+const uri = process.env.MONGODB_URI;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -36,8 +34,6 @@ async function run() {
   }
 }
 run().catch(console.dir);
-
-
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
