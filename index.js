@@ -10,7 +10,7 @@ app.get("/", (req, res) => {
   res.send("Hello World!");
 });
 
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = process.env.MONGODB_URI;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -30,7 +30,7 @@ async function run() {
     const db = client.db("Novara");
     const writersCollection = db.collection("writers");
 
-    // writers api route
+    // writers  releted routes
     app.post("/api/writers", async (req, res) => {
       try {
         const book = req.body;
@@ -42,6 +42,58 @@ async function run() {
           success: true,
           insertedId: result.insertedId,
         });
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    app.get("/api/writers/:id", async (req, res) => {
+      try {
+        const userId = req.params.id;
+        const query = { id: userId };
+
+        const result = await writersCollection.find(query).toArray();
+
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    app.delete("/api/writers/:id", async (req, res) => {
+      try {
+        const bookId = req.params.id;
+        const filter = { _id: new ObjectId(bookId) };
+
+        const result = await writersCollection.deleteOne(filter);
+
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    app.patch("/api/writers/:id", async (req, res) => {
+      try {
+        const bookId = req.params.id;
+        const filter = { _id: new ObjectId(bookId) };
+
+        const update = {
+          $set: req.body,
+        };
+
+        const result = await writersCollection.updateOne(filter, update);
+
+        res.send(result);
       } catch (error) {
         res.status(500).send({
           success: false,
