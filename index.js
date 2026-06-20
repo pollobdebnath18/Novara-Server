@@ -102,6 +102,28 @@ async function run() {
       }
     });
 
+    app.patch("/api/writers/:id", async (req, res) => {
+      try {
+        const { status } = req.body;
+        const bookId = req.params.id;
+        const filter = { id: new ObjectId(bookId) };
+        const update = {
+          $set: {
+            status: status,
+          },
+        };
+
+        const result = await writersCollection.updateOne(filter, update);
+
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
