@@ -1,7 +1,10 @@
 const express = require("express");
 const app = express();
+const cors = require("cors");
 const port = 8000;
 require("dotenv").config();
+app.use(express.json());
+app.use(cors());
 
 app.get("/", (req, res) => {
   res.send("Hello World!");
@@ -23,6 +26,30 @@ async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
+
+    const db = client.db("Novara");
+    const writersCollection = db.collection("writers");
+
+    // writers api route
+    app.post("/api/writers", async (req, res) => {
+      try {
+        const book = req.body;
+        console.log(book, "from backend");
+
+        const result = await writersCollection.insertOne(book);
+
+        res.send({
+          success: true,
+          insertedId: result.insertedId,
+        });
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
