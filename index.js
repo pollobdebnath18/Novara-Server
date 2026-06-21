@@ -29,8 +29,73 @@ async function run() {
 
     const db = client.db("Novara");
     const writersCollection = db.collection("writers");
+    const userCollection = db.collection("user");
+    // console.log('usercollection',userCollection);
+
+    // user related routes
+    app.get("/api/user", async (req, res) => {
+      try {
+        const user = await userCollection.find({}).toArray();
+        res.send(user);
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    app.patch("/api/user/:id", async (req, res) => {
+      try {
+        const userId = req.params.id;
+        const filter = {
+          _id: new ObjectId(userId),
+        };
+        const { role } = req.body;
+        const updated = {
+          $set: {
+            role: role,
+          },
+        };
+        const result = await userCollection.updateOne(filter, updated);
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    app.delete("/api/user/:id", async (req, res) => {
+      try {
+        const userId = req.params.id;
+        const filter = {
+          _id: new ObjectId(userId),
+        };
+        const result = await userCollection.deleteOne(filter);
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
 
     // writers  releted routes
+    app.get("/api/writers", async (req, res) => {
+      try {
+        const result = await writersCollection.find({}).toArray();
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
     app.post("/api/writers", async (req, res) => {
       try {
         const book = req.body;
@@ -57,6 +122,23 @@ async function run() {
 
         const result = await writersCollection.find(query).toArray();
 
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    // browse books (bookdetails)
+    app.get("/api/writers/books/:id", async (req, res) => {
+      try {
+        const bookId = req.params.id;
+        console.log(bookId, "from browse books");
+        const query = { _id: new ObjectId(bookId) };
+        const result = await writersCollection.findOne(query);
+        console.log(result, "from browse booksdetails");
         res.send(result);
       } catch (error) {
         res.status(500).send({
