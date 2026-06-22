@@ -165,6 +165,21 @@ async function run() {
       }
     });
 
+    // delete a book in admin manage books apge
+    app.delete("/api/writers/delete/:id", async (req, res) => {
+      try {
+        const bookId = req.params.id;
+        const filter = { _id: new ObjectId(bookId) };
+        const result = await writersCollection.deleteOne(filter);
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
     app.patch("/api/writers/:id", async (req, res) => {
       try {
         const bookId = req.params.id;
@@ -190,6 +205,29 @@ async function run() {
         const { status } = req.body;
         const bookId = req.params.id;
         const filter = { id: new ObjectId(bookId) };
+        const update = {
+          $set: {
+            status: status,
+          },
+        };
+
+        const result = await writersCollection.updateOne(filter, update);
+
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    //status update in admin manage books apge
+    app.patch("/api/writers/status/:id", async (req, res) => {
+      try {
+        const bookId = req.params.id;
+        const filter = { _id: new ObjectId(bookId) };
+        const { status } = req.body;
         const update = {
           $set: {
             status: status,
