@@ -30,6 +30,7 @@ async function run() {
     const db = client.db("Novara");
     const writersCollection = db.collection("writers");
     const userCollection = db.collection("user");
+    const bookMarkedCollection = db.collection("bookMarked");
     // console.log('usercollection',userCollection);
 
     // user related routes
@@ -135,10 +136,10 @@ async function run() {
     app.get("/api/writers/books/:id", async (req, res) => {
       try {
         const bookId = req.params.id;
-        console.log(bookId, "from browse books");
+        // console.log(bookId, "from browse books");
         const query = { _id: new ObjectId(bookId) };
         const result = await writersCollection.findOne(query);
-        console.log(result, "from browse booksdetails");
+        // console.log(result, "from browse booksdetails");
         res.send(result);
       } catch (error) {
         res.status(500).send({
@@ -198,6 +199,49 @@ async function run() {
         const result = await writersCollection.updateOne(filter, update);
 
         res.send(result);
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    // book marked routes (  add bookmark)
+    app.post("/api/bookmark", async (req, res) => {
+      const data = req.body;
+
+      const result = await bookMarkedCollection.insertOne(data);
+
+      res.json(result);
+    });
+
+    // deleted bookmark
+    app.delete("/api/bookmark", async (req, res) => {
+      const { bookmarkUserEmail, book } = req.body;
+
+      const result = await bookMarkedCollection.deleteOne({
+        bookmarkUserEmail,
+
+        "book._id": book._id,
+      });
+
+      res.json(result);
+    });
+
+    // check bookmark
+    app.get("/api/bookmark/check", async (req, res) => {
+      try {
+        const { email, bookId } = req.query;
+
+        const result = await bookMarkedCollection.findOne({
+          bookmarkUserEmail: email,
+          "book._id": bookId,
+        });
+
+        res.send({
+          isBookmarked: !!result,
+        });
       } catch (error) {
         res.status(500).send({
           success: false,
