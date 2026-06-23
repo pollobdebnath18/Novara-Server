@@ -87,27 +87,11 @@ async function run() {
     // writers  releted routes
     app.get("/api/writers", async (req, res) => {
       try {
-        const result = await writersCollection.find({}).toArray();
+        const query = {
+          status: "published",
+        };
+        const result = await writersCollection.find(query).toArray();
         res.send(result);
-      } catch (error) {
-        res.status(500).send({
-          success: false,
-          message: error.message,
-        });
-      }
-    });
-
-    app.post("/api/writers", async (req, res) => {
-      try {
-        const book = req.body;
-        console.log(book, "from backend");
-
-        const result = await writersCollection.insertOne(book);
-
-        res.send({
-          success: true,
-          insertedId: result.insertedId,
-        });
       } catch (error) {
         res.status(500).send({
           success: false,
@@ -141,6 +125,25 @@ async function run() {
         const result = await writersCollection.findOne(query);
         // console.log(result, "from browse booksdetails");
         res.send(result);
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    app.post("/api/writers", async (req, res) => {
+      try {
+        const book = req.body;
+        // console.log(book, "from backend");
+
+        const result = await writersCollection.insertOne(book);
+
+        res.send({
+          success: true,
+          insertedId: result.insertedId,
+        });
       } catch (error) {
         res.status(500).send({
           success: false,
@@ -247,39 +250,126 @@ async function run() {
 
     // book marked routes (  add bookmark)
     app.post("/api/bookmark", async (req, res) => {
-      const data = req.body;
+      try {
+        const data = req.body;
 
-      const result = await bookMarkedCollection.insertOne(data);
+        const alreadyBookmarked = await bookMarkedCollection.findOne({
+          userId: data.userId,
+          bookId: data.bookId,
+        });
 
-      res.json(result);
+        if (alreadyBookmarked) {
+          return res.status(400).send({
+            success: false,
+            message: "Bookmark already exists",
+          });
+        }
+
+        const result = await bookMarkedCollection.insertOne(data);
+
+        return res.json(result);
+      } catch (error) {
+        return res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
     });
 
     // deleted bookmark
     app.delete("/api/bookmark", async (req, res) => {
-      const { bookmarkUserEmail, book } = req.body;
+      const { userId, bookId } = req.body;
 
       const result = await bookMarkedCollection.deleteOne({
-        bookmarkUserEmail,
-
-        "book._id": book._id,
+        userId,
+        bookId,
       });
 
       res.json(result);
     });
 
-    // check bookmark
-    app.get("/api/bookmark/check", async (req, res) => {
+    // writers bookmark page api call for get all books by user
+    app.get("/api/bookmark/:id", async (req, res) => {
       try {
-        const { email, bookId } = req.query;
+        const userId = req.params.id;
+        const query = { bookmarkUserId: userId };
+        const result = await bookMarkedCollection.find(query).toArray();
+        // console.log(result, "from bookmark!");
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    // check bookmark from browse books page
+    app.get("/api/bookmark-check", async (req, res) => {
+      try {
+        const { userId, bookId } = req.query;
+        console.log(userId, bookId, "from check bookmark");
+
+        if (!userId || !bookId) {
+          return res.status(400).send({
+            success: false,
+            message: "userId and bookId are required",
+          });
+        }
 
         const result = await bookMarkedCollection.findOne({
-          bookmarkUserEmail: email,
-          "book._id": bookId,
+          bookId,
+          userId, // STRING MATCH
         });
+        console.log(result);
 
-        res.send({
+        return res.status(200).send({
           isBookmarked: !!result,
         });
+      } catch (error) {
+        return res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    // reader bookmark page api call for get all books by user
+    app.get("/api/bookmarks/my/:id", async (req, res) => {
+      try {
+        const userId = req.params.id;
+        console.log(userId, "from bookmarks!!!!");
+
+        const result = await bookMarkedCollection
+          .aggregate([
+            {
+              $match: {
+                userId: userId,
+              },
+            },
+            // 1. Convert the string bookId to an ObjectId
+            {
+              $addFields: {
+                convertedBookId: { $toObjectId: "$bookId" },
+              },
+            },
+            // 2. Use the newly converted field for the lookup
+            {
+              $lookup: {
+                from: "writers",
+                localField: "convertedBookId",
+                foreignField: "_id",
+                as: "book",
+              },
+            },
+            {
+              $unwind: "$book",
+            },
+          ])
+          .toArray();
+
+        console.log(result, "from bookmarks!!!!");
+        res.send(result);
       } catch (error) {
         res.status(500).send({
           success: false,
