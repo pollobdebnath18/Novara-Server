@@ -31,6 +31,7 @@ async function run() {
     const writersCollection = db.collection("writers");
     const userCollection = db.collection("user");
     const bookMarkedCollection = db.collection("bookMarked");
+    const paymentCollection = db.collection("payment");
     // console.log('usercollection',userCollection);
 
     // user related routes
@@ -338,7 +339,7 @@ async function run() {
     app.get("/api/bookmarks/my/:id", async (req, res) => {
       try {
         const userId = req.params.id;
-        console.log(userId, "from bookmarks!!!!");
+        // console.log(userId, "from bookmarks!!!!");
 
         const result = await bookMarkedCollection
           .aggregate([
@@ -368,7 +369,7 @@ async function run() {
           ])
           .toArray();
 
-        console.log(result, "from bookmarks!!!!");
+        // console.log(result, "from bookmarks!!!!");
         res.send(result);
       } catch (error) {
         res.status(500).send({
@@ -376,6 +377,27 @@ async function run() {
           message: error.message,
         });
       }
+    });
+
+    // payments related routes
+    app.post("/api/payments", async (req, res) => {
+      const { sessionId, userId, userEmail, priceId,bookId } = req.body;
+
+      const alreadyExists = await paymentCollection.findOne({ sessionId });
+      if (alreadyExists) {
+        return res.status(400).send({
+          success: false,
+          message: "Payment already exists",
+        });
+      }
+      const result = await paymentCollection.insertOne({
+        sessionId,
+        userId,
+        userEmail,
+        priceId,
+        bookId,
+      });
+      res.send({ message: "payment added successfully", success: true });
     });
 
     // Send a ping to confirm a successful connection
