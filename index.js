@@ -255,8 +255,8 @@ async function run() {
         const data = req.body;
 
         const alreadyBookmarked = await bookMarkedCollection.findOne({
-          userId: data.userId,
-          bookId: data.bookId,
+          userId: new ObjectId(data.userId),
+          bookId: new ObjectId(data.bookId),
         });
 
         if (alreadyBookmarked) {
@@ -265,6 +265,8 @@ async function run() {
             message: "Bookmark already exists",
           });
         }
+        data.userId = new ObjectId(data.userId);
+        data.bookId = new ObjectId(data.bookId);
 
         const result = await bookMarkedCollection.insertOne(data);
 
@@ -289,27 +291,58 @@ async function run() {
       res.json(result);
     });
 
-    // writers bookmark page api call for get all books by user
-    app.get("/api/bookmark/:id", async (req, res) => {
-      try {
-        const userId = req.params.id;
-        const query = { bookmarkUserId: userId };
-        const result = await bookMarkedCollection.find(query).toArray();
-        // console.log(result, "from bookmark!");
-        res.send(result);
-      } catch (error) {
-        res.status(500).send({
-          success: false,
-          message: error.message,
-        });
-      }
-    });
+    // writers bookmark page api call for get all bookmarks by user
+  app.get("/api/bookmark", async (req, res) => {
+    try {
+      const { writerId } = req.query;
+      console.log(writerId, "from bookmark!!!");
+
+      const result = await bookMarkedCollection
+        .aggregate([
+          {
+            $match: {
+              writerId: writerId,
+            },
+          },
+
+          // {
+          //   $addFields: {
+          //     convertedBookId: { $toObjectId: "$bookId" },
+          //   },
+          // },
+
+          {
+            $lookup: {
+              from: "writers", // your books collection name
+
+              localField: 'bookId', // the field in your books collection
+
+              foreignField: "_id",
+
+              as: "book",
+            },
+          },
+
+          {
+            $unwind: "$book",
+          },
+        ])
+        .toArray();
+        console.log(result, "from bookmark!!!");
+
+      res.send(result);
+    } catch (error) {
+      res.status(500).send({
+        message: error.message,
+      });
+    }
+  });
 
     // check bookmark from browse books page
     app.get("/api/bookmark-check", async (req, res) => {
       try {
         const { userId, bookId } = req.query;
-        console.log(userId, bookId, "from check bookmark");
+        // console.log(userId, bookId, "from check bookmark");
 
         if (!userId || !bookId) {
           return res.status(400).send({
@@ -322,7 +355,7 @@ async function run() {
           bookId,
           userId, // STRING MATCH
         });
-        console.log(result);
+        // console.log(result);
 
         return res.status(200).send({
           isBookmarked: !!result,
@@ -379,9 +412,10 @@ async function run() {
       }
     });
 
-    // payments related routes
+    // payments related routes ( add payment)
     app.post("/api/payments", async (req, res) => {
-      const { sessionId, userId, userEmail, priceId,bookId } = req.body;
+      const { sessionId, name, userId, userEmail, priceId, bookId, writerId } =
+        req.body;
 
       const alreadyExists = await paymentCollection.findOne({ sessionId });
       if (alreadyExists) {
@@ -395,9 +429,29 @@ async function run() {
         userId,
         userEmail,
         priceId,
+        name,
         bookId,
+        writerId,
+        purchaseDate: new Date(),
       });
       res.send({ message: "payment added successfully", success: true });
+    });
+
+    // writers sales page api call for get all books by writer
+    app.get("/api/sales-history", async (req, res) => {
+      try {
+        const { writerId } = req.query;
+        // console.log(writerId, "from sales history");
+        const query = { writerId };
+        const result = await paymentCollection.find(query).toArray();
+        // console.log(result, "from sales history");
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
     });
 
     // Send a ping to confirm a successful connection
