@@ -44,8 +44,9 @@ const verifyToken = async (req, res, next) => {
 
   try {
     const { payload } = await jwtVerify(token, JWKS);
-    req.user=payload;
-    console.log(payload,'from backend verifytoken');
+    req.user = payload;
+    console.log(req.user, "from backend verifytoken user");
+    console.log(payload, "from backend verifytoken payload");
 
     next();
   } catch (error) {
@@ -66,6 +67,7 @@ const verifyWriters = async (req, res, next) => {
       message: "Unauthorized",
     });
   }
+  console.log(req.user, "from backend verifywriters (writers)");
   next();
 };
 
@@ -195,7 +197,7 @@ async function run() {
     });
 
     // writers add book page api call for create a book
-    app.post("/api/writers",verifyToken,verifyWriters , async (req, res) => {
+    app.post("/api/writers", verifyToken, verifyWriters, async (req, res) => {
       try {
         const book = req.body;
         // console.log(book, "from backend");
@@ -567,6 +569,21 @@ async function run() {
     app.get("/api/transactions", async (req, res) => {
       const result = await paymentCollection.find({}).toArray();
       res.send(result);
+    });
+
+    // pagination api call for get all books
+    app.get("/api/paginations", async (req, res) => {
+      const { page = 1, limit = 10 } = req.query;
+      const skip = (Number(page) - 1) * Number(limit);
+      const result = await writersCollection
+        .find()
+        .skip(skip)
+        .limit(Number(limit))
+        .toArray();
+
+        const totalData = await writersCollection.countDocuments();
+        const totalPages = Math.ceil(totalData / Number(limit));
+      res.send({ data:result , page: Number(page), totalPages });
     });
 
     // Send a ping to confirm a successful connection
