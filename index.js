@@ -573,17 +573,25 @@ async function run() {
 
     // pagination api call for get all books
     app.get("/api/paginations", async (req, res) => {
-      const { page = 1, limit = 10 } = req.query;
+      const { search } = req.query;
+      const { page = 1, limit = 8 } = req.query;
       const skip = (Number(page) - 1) * Number(limit);
+      const query = {};
+      if (search) {
+        query.$or = [
+          { title: { $regex: search, $options: "i" } },
+          { writerName: { $regex: search, $options: "i" } },
+        ];
+      }
       const result = await writersCollection
-        .find()
+        .find(query)
         .skip(skip)
         .limit(Number(limit))
         .toArray();
 
-        const totalData = await writersCollection.countDocuments();
-        const totalPages = Math.ceil(totalData / Number(limit));
-      res.send({ data:result , page: Number(page), totalPages });
+      const totalData = await writersCollection.countDocuments(query);
+      const totalPages = Math.ceil(totalData / Number(limit));
+      res.send({ data: result, page: Number(page), totalPages });
     });
 
     // Send a ping to confirm a successful connection
