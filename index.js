@@ -11,6 +11,7 @@ app.get("/", (req, res) => {
 });
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const { createRemoteJWKSet, jwtVerify } = require("jose-cjs");
 const uri = process.env.MONGODB_URI;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -21,6 +22,52 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+
+const JWKS = createRemoteJWKSet(
+  new URL(`${process.env.CLIENT_URL}/api/auth/jwks`),
+);
+const verifyToken = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).send({
+      success: false,
+      message: "No token provided",
+    });
+  }
+  const token = authHeader.split(" ")[1];
+  if (!token) {
+    return res.status(401).send({
+      success: false,
+      message: "No token provided",
+    });
+  }
+
+  try {
+    const { payload } = await jwtVerify(token, JWKS);
+    req.user=payload;
+    console.log(payload,'from backend verifytoken');
+
+    next();
+  } catch (error) {
+    console.log(error);
+    return res.status(401).send({
+      success: false,
+      message: "Invalid token",
+    });
+  }
+};
+
+// Writers verfication
+const verifyWriters = async (req, res, next) => {
+  const writers = req.user;
+  if (writers.role !== "Writer") {
+    return res.status(401).send({
+      success: false,
+      message: "Unauthorized",
+    });
+  }
+  next();
+};
 
 async function run() {
   try {
@@ -147,7 +194,8 @@ async function run() {
       }
     });
 
-    app.post("/api/writers", async (req, res) => {
+    // writers add book page api call for create a book
+    app.post("/api/writers",verifyToken,verifyWriters , async (req, res) => {
       try {
         const book = req.body;
         // console.log(book, "from backend");
