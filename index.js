@@ -101,6 +101,19 @@ async function run() {
       }
     });
 
+    // admin manage ebooks page api call for get all books by writer
+    app.get("/api/writers/admin", async (req, res) => {
+      try {
+        const result = await writersCollection.find({}).toArray();
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
     app.get("/api/writers/:id", async (req, res) => {
       try {
         const userId = req.params.id;
@@ -255,8 +268,8 @@ async function run() {
         const data = req.body;
 
         const alreadyBookmarked = await bookMarkedCollection.findOne({
-          userId: new ObjectId(data.userId),
-          bookId: new ObjectId(data.bookId),
+          userId: data.userid,
+          bookId: data.bookId,
         });
 
         if (alreadyBookmarked) {
@@ -265,8 +278,8 @@ async function run() {
             message: "Bookmark already exists",
           });
         }
-        data.userId = new ObjectId(data.userId);
-        data.bookId = new ObjectId(data.bookId);
+        // data.userId = new ObjectId(data.userId);
+        // data.bookId = new ObjectId(data.bookId);
 
         const result = await bookMarkedCollection.insertOne(data);
 
@@ -292,51 +305,51 @@ async function run() {
     });
 
     // writers bookmark page api call for get all bookmarks by user
-  app.get("/api/bookmark", async (req, res) => {
-    try {
-      const { writerId } = req.query;
-      console.log(writerId, "from bookmark!!!");
+    app.get("/api/bookmark", async (req, res) => {
+      try {
+        const { writerId } = req.query;
+        // console.log(writerId, "from bookmark!!!");
 
-      const result = await bookMarkedCollection
-        .aggregate([
-          {
-            $match: {
-              writerId: writerId,
+        const result = await bookMarkedCollection
+          .aggregate([
+            {
+              $match: {
+                writerId: writerId,
+              },
             },
-          },
 
-          // {
-          //   $addFields: {
-          //     convertedBookId: { $toObjectId: "$bookId" },
-          //   },
-          // },
-
-          {
-            $lookup: {
-              from: "writers", // your books collection name
-
-              localField: 'bookId', // the field in your books collection
-
-              foreignField: "_id",
-
-              as: "book",
+            {
+              $addFields: {
+                convertedBookId: { $toObjectId: "$bookId" },
+              },
             },
-          },
 
-          {
-            $unwind: "$book",
-          },
-        ])
-        .toArray();
-        console.log(result, "from bookmark!!!");
+            {
+              $lookup: {
+                from: "writers", // your books collection name
 
-      res.send(result);
-    } catch (error) {
-      res.status(500).send({
-        message: error.message,
-      });
-    }
-  });
+                localField: "convertedBookId", // the field in your books collection
+
+                foreignField: "_id",
+
+                as: "book",
+              },
+            },
+
+            {
+              $unwind: "$book",
+            },
+          ])
+          .toArray();
+        // console.log(result, "from bookmark");
+
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({
+          message: error.message,
+        });
+      }
+    });
 
     // check bookmark from browse books page
     app.get("/api/bookmark-check", async (req, res) => {
@@ -452,6 +465,60 @@ async function run() {
           message: error.message,
         });
       }
+    });
+
+    // readers purchasesd page api call for get all purchases by user
+    app.get("/api/payment/my/:id", async (req, res) => {
+      try {
+        const userId = req.params.id;
+        // console.log(userId, "from purchases");
+
+        const result = await paymentCollection
+          .aggregate([
+            {
+              $match: {
+                userId: userId,
+              },
+            },
+            {
+              $addFields: {
+                convertedBookId: { $toObjectId: "$bookId" },
+              },
+            },
+            {
+              $lookup: {
+                from: "writers",
+                localField: "convertedBookId",
+                foreignField: "_id",
+                as: "book",
+              },
+            },
+            { $unwind: "$book" },
+          ])
+          .toArray();
+
+        // console.log(result, "from purchases");
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    // book details page api call for get all purchases by user
+    app.get("/api/purchases/my", async (req, res) => {
+      const { userId } = req.query;
+      const result = await paymentCollection.find({ userId }).toArray();
+      console.log(result, "from purchases");
+      res.send(result);
+    });
+
+    // admin transactions page api call for get all transactions by  user
+    app.get("/api/transactions", async (req, res) => {
+      const result = await paymentCollection.find({}).toArray();
+      res.send(result);
     });
 
     // Send a ping to confirm a successful connection
