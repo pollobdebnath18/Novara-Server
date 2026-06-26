@@ -122,6 +122,16 @@ async function run() {
       }
     });
 
+    // writer profile (public page) get api by writer id
+    app.get("/api/user/writer/:id", async (req, res) => {
+      const { id } = req.params;
+      const query = {
+        _id: new ObjectId(id),
+      };
+      const result = await userCollection.findOne(query);
+      res.send(result);
+    });
+
     // admin manage users page api call for get all users by admin
     app.patch("/api/user/:id", verifyToken, verifyAdmin, async (req, res) => {
       try {
@@ -169,6 +179,26 @@ async function run() {
           status: "published",
         };
         const result = await writersCollection.find(query).toArray();
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    // Featured books page (home page)
+    app.get("/api/featured-books", async (req, res) => {
+      try {
+        const query = {
+          status: "published",
+        };
+        const result = await writersCollection
+          .find(query)
+          .sort({ createdAt: -1 })
+          .limit(6)
+          .toArray();
         res.send(result);
       } catch (error) {
         res.status(500).send({
@@ -234,6 +264,30 @@ async function run() {
       "/api/writers/books/my/:id",
       verifyToken,
       verifyWriters,
+      async (req, res) => {
+        try {
+          const writerId = req.params.id;
+
+          const query = {
+            id: writerId,
+          };
+
+          const result = await writersCollection.find(query).toArray();
+
+          res.send(result);
+        } catch (error) {
+          res.status(500).send({
+            success: false,
+            message: error.message,
+          });
+        }
+      },
+    );
+
+    // writer profile page (public page)
+    app.get(
+      `/api/writers/profile/:id`,
+
       async (req, res) => {
         try {
           const writerId = req.params.id;
@@ -669,18 +723,80 @@ async function run() {
 
     // pagination api call for get all books
     app.get("/api/paginations", async (req, res) => {
-      const { search } = req.query;
-      const { page = 1, limit = 8 } = req.query;
+      const {
+        search,
+        genre,
+        price,
+        status,
+        page = 1,
+        limit = 8,
+        sort,
+      } = req.query;
+
       const skip = (Number(page) - 1) * Number(limit);
       const query = {};
+
+      // search functionality
       if (search) {
         query.$or = [
           { title: { $regex: search, $options: "i" } },
           { writerName: { $regex: search, $options: "i" } },
         ];
       }
+
+      // genre functionality
+      // Genre filter
+      if (genre) {
+        query.genre = genre;
+      }
+      // price filter
+      if (price) {
+        const [min, max] = price.split("-");
+
+        query.price = {
+          $gte: Number(min),
+          $lte: Number(max),
+        };
+      }
+
+      // Availability filter
+      if (status) {
+        if (status === "sold") {
+          query.isSold = true;
+        }
+
+        if (status === "unsold") {
+          query.isSold = false;
+        }
+      }
+
+      //sort functionality
+      let sortQuery = {};
+
+      // newest first
+      if (sort === "newest") {
+        sortQuery = {
+          createdAt: -1,
+        };
+      }
+
+      // low price
+      if (sort === "price-low") {
+        sortQuery = {
+          price: 1,
+        };
+      }
+
+      // high price
+      if (sort === "price-high") {
+        sortQuery = {
+          price: -1,
+        };
+      }
+
       const result = await writersCollection
         .find(query)
+        .sort(sortQuery)
         .skip(skip)
         .limit(Number(limit))
         .toArray();
