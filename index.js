@@ -71,6 +71,32 @@ const verifyWriters = async (req, res, next) => {
   next();
 };
 
+//Admin verification
+const verifyAdmin = async (req, res, next) => {
+  const admin = req.user;
+  if (admin.role !== "Admin") {
+    return res.status(401).send({
+      success: false,
+      message: "Unauthorized",
+    });
+  }
+  console.log(req.user, "from backend verifyadmin (admin)");
+  next();
+};
+
+//Readers verification
+const verifyReaders = async (req, res, next) => {
+  const readers = req.user;
+  if (readers.role !== "Reader") {
+    return res.status(401).send({
+      success: false,
+      message: "Unauthorized",
+    });
+  }
+  console.log(req.user, "from backend verifyreaders (readers)");
+  next();
+};
+
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
@@ -83,8 +109,8 @@ async function run() {
     const paymentCollection = db.collection("payment");
     // console.log('usercollection',userCollection);
 
-    // user related routes
-    app.get("/api/user", async (req, res) => {
+    // admin manage users page api call for get all users by admin
+    app.get("/api/user", verifyToken, verifyAdmin, async (req, res) => {
       try {
         const user = await userCollection.find({}).toArray();
         res.send(user);
@@ -96,7 +122,8 @@ async function run() {
       }
     });
 
-    app.patch("/api/user/:id", async (req, res) => {
+    // admin manage users page api call for get all users by admin
+    app.patch("/api/user/:id", verifyToken, verifyAdmin, async (req, res) => {
       try {
         const userId = req.params.id;
         const filter = {
@@ -118,7 +145,8 @@ async function run() {
       }
     });
 
-    app.delete("/api/user/:id", async (req, res) => {
+    // admin manage users page api call for get all users by admin
+    app.delete("/api/user/:id", verifyToken, verifyAdmin, async (req, res) => {
       try {
         const userId = req.params.id;
         const filter = {
@@ -151,17 +179,22 @@ async function run() {
     });
 
     // admin manage ebooks page api call for get all books by writer
-    app.get("/api/writers/admin", async (req, res) => {
-      try {
-        const result = await writersCollection.find({}).toArray();
-        res.send(result);
-      } catch (error) {
-        res.status(500).send({
-          success: false,
-          message: error.message,
-        });
-      }
-    });
+    app.get(
+      "/api/writers/admin",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        try {
+          const result = await writersCollection.find({}).toArray();
+          res.send(result);
+        } catch (error) {
+          res.status(500).send({
+            success: false,
+            message: error.message,
+          });
+        }
+      },
+    );
 
     app.get("/api/writers/:id", async (req, res) => {
       try {
@@ -196,6 +229,31 @@ async function run() {
       }
     });
 
+    // writers (home page & manage books page) api call for get all books by writer
+    app.get(
+      "/api/writers/books/my/:id",
+      verifyToken,
+      verifyWriters,
+      async (req, res) => {
+        try {
+          const writerId = req.params.id;
+
+          const query = {
+            id: writerId,
+          };
+
+          const result = await writersCollection.find(query).toArray();
+
+          res.send(result);
+        } catch (error) {
+          res.status(500).send({
+            success: false,
+            message: error.message,
+          });
+        }
+      },
+    );
+
     // writers add book page api call for create a book
     app.post("/api/writers", verifyToken, verifyWriters, async (req, res) => {
       try {
@@ -216,38 +274,50 @@ async function run() {
       }
     });
 
-    app.delete("/api/writers/:id", async (req, res) => {
-      try {
-        const bookId = req.params.id;
-        const filter = { _id: new ObjectId(bookId) };
+    // writers manage books page api call for get all books by writer
+    app.delete(
+      "/api/writers/:id",
+      verifyToken,
+      verifyWriters,
+      async (req, res) => {
+        try {
+          const bookId = req.params.id;
+          const filter = { _id: new ObjectId(bookId) };
 
-        const result = await writersCollection.deleteOne(filter);
+          const result = await writersCollection.deleteOne(filter);
 
-        res.send(result);
-      } catch (error) {
-        res.status(500).send({
-          success: false,
-          message: error.message,
-        });
-      }
-    });
+          res.send(result);
+        } catch (error) {
+          res.status(500).send({
+            success: false,
+            message: error.message,
+          });
+        }
+      },
+    );
 
-    // delete a book in admin manage books apge
-    app.delete("/api/writers/delete/:id", async (req, res) => {
-      try {
-        const bookId = req.params.id;
-        const filter = { _id: new ObjectId(bookId) };
-        const result = await writersCollection.deleteOne(filter);
-        res.send(result);
-      } catch (error) {
-        res.status(500).send({
-          success: false,
-          message: error.message,
-        });
-      }
-    });
+    // admin manage books apge
+    app.delete(
+      "/api/writers/delete/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        try {
+          const bookId = req.params.id;
+          const filter = { _id: new ObjectId(bookId) };
+          const result = await writersCollection.deleteOne(filter);
+          res.send(result);
+        } catch (error) {
+          res.status(500).send({
+            success: false,
+            message: error.message,
+          });
+        }
+      },
+    );
 
-    app.patch("/api/writers/:id", async (req, res) => {
+    // writers manage books page(modal data update)
+    app.patch("/api/writers/update/:id", async (req, res) => {
       try {
         const bookId = req.params.id;
         const filter = { _id: new ObjectId(bookId) };
@@ -267,34 +337,12 @@ async function run() {
       }
     });
 
-    app.patch("/api/writers/:id", async (req, res) => {
+    // writers manage books page ( status update)
+    app.patch("/api/writers/change-status/:id", async (req, res) => {
       try {
         const { status } = req.body;
-        const bookId = req.params.id;
-        const filter = { id: new ObjectId(bookId) };
-        const update = {
-          $set: {
-            status: status,
-          },
-        };
-
-        const result = await writersCollection.updateOne(filter, update);
-
-        res.send(result);
-      } catch (error) {
-        res.status(500).send({
-          success: false,
-          message: error.message,
-        });
-      }
-    });
-
-    //status update in admin manage books apge
-    app.patch("/api/writers/status/:id", async (req, res) => {
-      try {
         const bookId = req.params.id;
         const filter = { _id: new ObjectId(bookId) };
-        const { status } = req.body;
         const update = {
           $set: {
             status: status,
@@ -311,6 +359,34 @@ async function run() {
         });
       }
     });
+
+    //admin manage books page status update
+    app.patch(
+      "/api/writers/status/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        try {
+          const bookId = req.params.id;
+          const filter = { _id: new ObjectId(bookId) };
+          const { status } = req.body;
+          const update = {
+            $set: {
+              status: status,
+            },
+          };
+
+          const result = await writersCollection.updateOne(filter, update);
+
+          res.send(result);
+        } catch (error) {
+          res.status(500).send({
+            success: false,
+            message: error.message,
+          });
+        }
+      },
+    );
 
     // book marked routes (  add bookmark)
     app.post("/api/bookmark", async (req, res) => {
@@ -354,52 +430,57 @@ async function run() {
       res.json(result);
     });
 
-    // writers bookmark page api call for get all bookmarks by user
-    app.get("/api/bookmark", async (req, res) => {
-      try {
-        const { writerId } = req.query;
-        // console.log(writerId, "from bookmark!!!");
+    // writers (home page & bookmark page) api call for get all bookmarks by writer
+    app.get(
+      "/api/bookmark/writer",
+      verifyToken,
+      verifyWriters,
+      async (req, res) => {
+        try {
+          const { writerId } = req.query;
+          // console.log(writerId, "from bookmark!!!");
 
-        const result = await bookMarkedCollection
-          .aggregate([
-            {
-              $match: {
-                writerId: writerId,
+          const result = await bookMarkedCollection
+            .aggregate([
+              {
+                $match: {
+                  writerId: writerId,
+                },
               },
-            },
 
-            {
-              $addFields: {
-                convertedBookId: { $toObjectId: "$bookId" },
+              {
+                $addFields: {
+                  convertedBookId: { $toObjectId: "$bookId" },
+                },
               },
-            },
 
-            {
-              $lookup: {
-                from: "writers", // your books collection name
+              {
+                $lookup: {
+                  from: "writers", // your books collection name
 
-                localField: "convertedBookId", // the field in your books collection
+                  localField: "convertedBookId", // the field in your books collection
 
-                foreignField: "_id",
+                  foreignField: "_id",
 
-                as: "book",
+                  as: "book",
+                },
               },
-            },
 
-            {
-              $unwind: "$book",
-            },
-          ])
-          .toArray();
-        // console.log(result, "from bookmark");
+              {
+                $unwind: "$book",
+              },
+            ])
+            .toArray();
+          // console.log(result, "from bookmark");
 
-        res.send(result);
-      } catch (error) {
-        res.status(500).send({
-          message: error.message,
-        });
-      }
-    });
+          res.send(result);
+        } catch (error) {
+          res.status(500).send({
+            message: error.message,
+          });
+        }
+      },
+    );
 
     // check bookmark from browse books page
     app.get("/api/bookmark-check", async (req, res) => {
@@ -432,48 +513,53 @@ async function run() {
     });
 
     // reader bookmark page api call for get all books by user
-    app.get("/api/bookmarks/my/:id", async (req, res) => {
-      try {
-        const userId = req.params.id;
-        // console.log(userId, "from bookmarks!!!!");
+    app.get(
+      "/api/bookmarks/my/:id",
+      verifyToken,
+      verifyReaders,
+      async (req, res) => {
+        try {
+          const userId = req.params.id;
+          // console.log(userId, "from bookmarks!!!!");
 
-        const result = await bookMarkedCollection
-          .aggregate([
-            {
-              $match: {
-                userId: userId,
+          const result = await bookMarkedCollection
+            .aggregate([
+              {
+                $match: {
+                  userId: userId,
+                },
               },
-            },
-            // 1. Convert the string bookId to an ObjectId
-            {
-              $addFields: {
-                convertedBookId: { $toObjectId: "$bookId" },
+              // 1. Convert the string bookId to an ObjectId
+              {
+                $addFields: {
+                  convertedBookId: { $toObjectId: "$bookId" },
+                },
               },
-            },
-            // 2. Use the newly converted field for the lookup
-            {
-              $lookup: {
-                from: "writers",
-                localField: "convertedBookId",
-                foreignField: "_id",
-                as: "book",
+              // 2. Use the newly converted field for the lookup
+              {
+                $lookup: {
+                  from: "writers",
+                  localField: "convertedBookId",
+                  foreignField: "_id",
+                  as: "book",
+                },
               },
-            },
-            {
-              $unwind: "$book",
-            },
-          ])
-          .toArray();
+              {
+                $unwind: "$book",
+              },
+            ])
+            .toArray();
 
-        // console.log(result, "from bookmarks!!!!");
-        res.send(result);
-      } catch (error) {
-        res.status(500).send({
-          success: false,
-          message: error.message,
-        });
-      }
-    });
+          // console.log(result, "from bookmarks!!!!");
+          res.send(result);
+        } catch (error) {
+          res.status(500).send({
+            success: false,
+            message: error.message,
+          });
+        }
+      },
+    );
 
     // payments related routes ( add payment)
     app.post("/api/payments", async (req, res) => {
@@ -500,62 +586,72 @@ async function run() {
       res.send({ message: "payment added successfully", success: true });
     });
 
-    // writers sales page api call for get all books by writer
-    app.get("/api/sales-history", async (req, res) => {
-      try {
-        const { writerId } = req.query;
-        // console.log(writerId, "from sales history");
-        const query = { writerId };
-        const result = await paymentCollection.find(query).toArray();
-        // console.log(result, "from sales history");
-        res.send(result);
-      } catch (error) {
-        res.status(500).send({
-          success: false,
-          message: error.message,
-        });
-      }
-    });
+    // writers (home page & sales history page) api call for get all books by writer
+    app.get(
+      "/api/sales-history",
+      verifyToken,
+      verifyWriters,
+      async (req, res) => {
+        try {
+          const { writerId } = req.query;
+          // console.log(writerId, "from sales history");
+          const query = { writerId };
+          const result = await paymentCollection.find(query).toArray();
+          // console.log(result, "from sales history");
+          res.send(result);
+        } catch (error) {
+          res.status(500).send({
+            success: false,
+            message: error.message,
+          });
+        }
+      },
+    );
 
     // readers purchasesd page api call for get all purchases by user
-    app.get("/api/payment/my/:id", async (req, res) => {
-      try {
-        const userId = req.params.id;
-        // console.log(userId, "from purchases");
+    app.get(
+      "/api/payment/my/:id",
+      verifyToken,
+      verifyReaders,
+      async (req, res) => {
+        try {
+          const userId = req.params.id;
+          // console.log(userId, "from purchases");
 
-        const result = await paymentCollection
-          .aggregate([
-            {
-              $match: {
-                userId: userId,
+          const result = await paymentCollection
+            .aggregate([
+              {
+                $match: {
+                  userId: userId,
+                },
               },
-            },
-            {
-              $addFields: {
-                convertedBookId: { $toObjectId: "$bookId" },
+              {
+                $addFields: {
+                  convertedBookId: { $toObjectId: "$bookId" },
+                },
               },
-            },
-            {
-              $lookup: {
-                from: "writers",
-                localField: "convertedBookId",
-                foreignField: "_id",
-                as: "book",
+              {
+                $lookup: {
+                  from: "writers",
+                  localField: "convertedBookId",
+                  foreignField: "_id",
+                  as: "book",
+                },
               },
-            },
-            { $unwind: "$book" },
-          ])
-          .toArray();
+              { $unwind: "$book" },
+            ])
+            .toArray();
 
-        // console.log(result, "from purchases");
-        res.send(result);
-      } catch (error) {
-        res.status(500).send({
-          success: false,
-          message: error.message,
-        });
-      }
-    });
+          // console.log(result, "from purchases");
+          res.send(result);
+        } catch (error) {
+          res.status(500).send({
+            success: false,
+            message: error.message,
+          });
+        }
+      },
+    );
 
     // book details page api call for get all purchases by user
     app.get("/api/purchases/my", async (req, res) => {
@@ -566,7 +662,7 @@ async function run() {
     });
 
     // admin transactions page api call for get all transactions by  user
-    app.get("/api/transactions", async (req, res) => {
+    app.get("/api/transactions", verifyToken, verifyAdmin, async (req, res) => {
       const result = await paymentCollection.find({}).toArray();
       res.send(result);
     });
