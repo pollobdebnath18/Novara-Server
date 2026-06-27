@@ -1,8 +1,9 @@
 const express = require("express");
 const app = express();
 const cors = require("cors");
-const port = 8000;
+
 require("dotenv").config();
+const port = process.env.PORT || 8000;
 app.use(express.json());
 app.use(cors());
 
@@ -100,7 +101,7 @@ const verifyReaders = async (req, res, next) => {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
     const db = client.db("Novara");
     const writersCollection = db.collection("writers");
@@ -637,7 +638,21 @@ async function run() {
         writerId,
         purchaseDate: new Date(),
       });
-      res.send({ message: "payment added successfully", success: true });
+
+      // update isSold in writers collection
+      const updateBook = await writersCollection.updateOne(
+        { _id: new ObjectId(bookId) },
+        {
+          $set: {
+            isSold: true,
+          },
+        },
+      );
+      res.send({
+        message: "payment added successfully",
+        success: true,
+        updateBook,
+      });
     });
 
     // writers (home page & sales history page) api call for get all books by writer
@@ -711,7 +726,7 @@ async function run() {
     app.get("/api/purchases/my", async (req, res) => {
       const { userId } = req.query;
       const result = await paymentCollection.find({ userId }).toArray();
-      console.log(result, "from purchases");
+      // console.log(result, "from purchases");
       res.send(result);
     });
 
