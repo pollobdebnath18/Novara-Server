@@ -123,6 +123,44 @@ async function run() {
       }
     });
 
+    app.patch("/api/update-profile/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        const { name, image } = req.body;
+
+        console.log("ID:", id);
+        console.log("BODY:", req.body);
+
+        const result = await userCollection.updateOne(
+          {
+            _id: new ObjectId(id),
+          },
+          {
+            $set: {
+              name: name,
+              image: image,
+              updatedAt: new Date(),
+            },
+          },
+        );
+
+        console.log("UPDATE RESULT:", result);
+
+        res.send({
+          success: true,
+          message: "Profile updated successfully",
+        });
+      } catch (error) {
+        console.log(error);
+
+        res.status(500).send({
+          success: false,
+          message: "server error",
+        });
+      }
+    });
+
     // writer profile (public page) get api by writer id
     app.get("/api/user/writer/:id", async (req, res) => {
       const { id } = req.params;
