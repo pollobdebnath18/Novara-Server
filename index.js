@@ -46,8 +46,8 @@ const verifyToken = async (req, res, next) => {
   try {
     const { payload } = await jwtVerify(token, JWKS);
     req.user = payload;
-    console.log(req.user, "from backend verifytoken user");
-    console.log(payload, "from backend verifytoken payload");
+    // console.log(req.user, "from backend verifytoken user");
+    // console.log(payload, "from backend verifytoken payload");
 
     next();
   } catch (error) {
@@ -68,7 +68,7 @@ const verifyWriters = async (req, res, next) => {
       message: "Unauthorized",
     });
   }
-  console.log(req.user, "from backend verifywriters (writers)");
+  // console.log(req.user, "from backend verifywriters (writers)");
   next();
 };
 
@@ -81,7 +81,7 @@ const verifyAdmin = async (req, res, next) => {
       message: "Unauthorized",
     });
   }
-  console.log(req.user, "from backend verifyadmin (admin)");
+  // console.log(req.user, "from backend verifyadmin (admin)");
   next();
 };
 
@@ -94,7 +94,7 @@ const verifyReaders = async (req, res, next) => {
       message: "Unauthorized",
     });
   }
-  console.log(req.user, "from backend verifyreaders (readers)");
+  // console.log(req.user, "from backend verifyreaders (readers)");
   next();
 };
 
